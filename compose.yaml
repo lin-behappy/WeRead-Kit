@@ -13,6 +13,7 @@ services:
       TZ: ${TZ:-Asia/Shanghai}
       WEREAD_USERNAME: ${WEREAD_USERNAME:-}
       WEREAD_PASSWORD: ${WEREAD_PASSWORD:-}
+      WEREAD_PF: ${WEREAD_PF:-wechat_wx-2001-android-100-weread}
     volumes:
       - ./data:/data
     healthcheck:

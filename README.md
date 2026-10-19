@@ -102,6 +102,7 @@ go build -o weread-kit ./cmd/weread-kit && ./weread-kit
 | `WEREAD_DB` | `data/weread.db` | SQLite 数据库路径 |
 | `WEREAD_USERNAME` | 空 | Web 登录账号；需与密码同时设置 |
 | `WEREAD_PASSWORD` | 空 | Web 登录密码 |
+| `WEREAD_PF` | `wechat_wx-2001-android-100-weread` | 周奖励领取端平台标识(`pf` 参数)；默认安卓，避免奖励被记为 iOS 端 |
 
 ## 开发
 

@@ -7,10 +7,26 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 )
 
-// weeklyPF 是奖励接口的平台标识,与服务端示例保持一致。
-const weeklyPF = "weread_wx-2001-iap-2001-iphone"
+// weeklyPF 是奖励领取接口(i.weread.qq.com/weekly/exchange)的平台标识。
+// 服务端按它记录奖励的领取端,两端的真值格式并不对称:
+//   - 安卓:wechat_wx-2001-android-100-weread
+//   - iOS: weread_wx-2001-iap-2001-iphone
+//
+// 默认用安卓串,避免奖励被记为 iOS 端(iOS 渠道币)后在安卓客户端无法使用。
+// 服务端只在真正领取(isExchangeAward=1)时校验,传其它值会报 errcode -2003;
+// 可用环境变量 WEREAD_PF 覆盖(如需恢复 iOS 行为)。
+var weeklyPF = envOr("WEREAD_PF", "wechat_wx-2001-android-100-weread")
+
+// envOr 返回环境变量的值,为空时回落到默认值。
+func envOr(key, def string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return def
+}
 
 // 奖励档位状态。
 const (
