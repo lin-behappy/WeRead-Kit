@@ -1084,6 +1084,8 @@ let readingAlias = null;
 let readingData = null;
 let readingCard = null;
 let readingPrefs = {};
+let readingAndroidConfigured = false;
+let readingAndroidError = "";
 let weeklyRequest = 0;
 
 async function openReading() {
@@ -1115,6 +1117,11 @@ function resetWeeklyUI() {
   readingData = null;
   readingCard = null;
   readingPrefs = {};
+  readingAndroidConfigured = false;
+  readingAndroidError = "";
+  const notice = $("#reading-channel-notice");
+  notice.classList.add("hidden");
+  notice.textContent = "";
   for (const id of ["reading-stat-time", "reading-stat-week-detail", "reading-stat-days",
     "reading-stat-month", "reading-stat-month-detail", "reading-stat-card", "reading-stat-card-sub"]) {
     $("#" + id).textContent = "—";
@@ -1136,6 +1143,8 @@ async function loadWeekly() {
     readingData = d.weekly || {};
     readingCard = d.card || null;
     readingPrefs = d.prefs || {};
+    readingAndroidConfigured = !!d.android_configured;
+    readingAndroidError = d.android_error || "";
     renderWeekly();
   } catch (err) {
     if (request !== weeklyRequest) return;
@@ -1299,8 +1308,25 @@ function renderWeekBars(root, readDays) {
   });
 }
 
+function renderChannelNotice() {
+  const notice = $("#reading-channel-notice");
+  if (readingAndroidError) {
+    notice.classList.remove("hidden");
+    notice.innerHTML = `<span class="banner-state">安卓通道异常</span><span class="banner-item">${escapeHtml(readingAndroidError)}</span>`;
+    return;
+  }
+  if (!readingAndroidConfigured) {
+    notice.classList.remove("hidden");
+    notice.innerHTML = `<span class="banner-state">墨水屏通道</span><span class="banner-item">7 天档当前仅能领取体验卡；如需 6 书币，请导入安卓客户端凭据</span>`;
+    return;
+  }
+  notice.classList.add("hidden");
+  notice.textContent = "";
+}
+
 function renderWeekly() {
   const w = readingData || {};
+  renderChannelNotice();
   $("#reading-stat-time").textContent = fmtDuration(w.readingTime);
   renderWeekBars($("#reading-stat-week-detail"), (w.weekReadDaysDetail || {}).readDays || []);
   $("#reading-stat-days").textContent = `${w.readingDay ?? 0} 天`;

@@ -6,6 +6,14 @@
 
 - 周奖励领取端默认由 iOS 改为安卓(`pf=wechat_wx-2001-android-100-weread`)，避免奖励被记为 iOS 端后在安卓客户端无法使用
 - 新增环境变量 `WEREAD_PF`，可自定义周奖励领取接口(`weekly/exchange`)的平台标识
+- 新增安卓客户端凭据存储(`weread_account.android`)与
+  `GET/POST/DELETE /api/accounts/{vid}/android` 导入接口；安卓 token 与墨水屏 token 独立保存
+- 周奖励查询优先安卓通道，7 天档可显示并领取 6 书币；安卓通道失败时查询回退墨水屏，
+  但书币领取不会回退成体验卡
+- 自动领取调度器按档位选择领取方式：7 天档书币走安卓，其余档位继续走墨水屏；
+  安卓不可用时记录告警并跳过，不会误领
+- 数据库迁移对已有 v1 库幂等补齐新增列(含 `android`)
+- 新增 `scripts/extract_android_creds.sh`，从已 root 的 ADB 设备提取主应用/应用双开凭据
 
 ## [v0.1.11] - 2026-09-24
 

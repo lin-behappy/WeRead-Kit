@@ -1,6 +1,7 @@
 package store
 
 import (
+	"database/sql"
 	"errors"
 	"os"
 	"path/filepath"
@@ -63,6 +64,99 @@ func TestSaveLoadRoundtrip(t *testing.T) {
 
 	if _, err := Load(db, "nope"); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("missing vid: want ErrNotFound, got %v", err)
+	}
+}
+
+func TestMigrationAddsAndroidToExistingV1(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "legacy.db")
+	raw, err := sql.Open("sqlite", path)
+	if err != nil {
+		t.Fatalf("open legacy: %v", err)
+	}
+	for _, stmt := range []string{
+		`CREATE TABLE weread_schema (version INTEGER PRIMARY KEY)`,
+		`INSERT INTO weread_schema(version) VALUES (1)`,
+		`CREATE TABLE weread_account (
+			vid TEXT PRIMARY KEY, refresh_token TEXT NOT NULL, device_id TEXT NOT NULL,
+			access_token TEXT NOT NULL DEFAULT '', remark TEXT NOT NULL DEFAULT '',
+			rotated_at INTEGER NOT NULL, created_at INTEGER NOT NULL)`,
+		`INSERT INTO weread_account(vid, refresh_token, device_id, access_token, remark, rotated_at, created_at)
+		 VALUES ('v', 'rt', 'dev', 'at', '', 1, 1)`,
+	} {
+		if _, err := raw.Exec(stmt); err != nil {
+			raw.Close()
+			t.Fatalf("legacy schema: %v", err)
+		}
+	}
+	raw.Close()
+
+	db, err := Open(path)
+	if err != nil {
+		t.Fatalf("Open legacy: %v", err)
+	}
+	defer db.Close()
+	var count int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM pragma_table_info('weread_account') WHERE name='android'`).Scan(&count); err != nil {
+		t.Fatalf("pragma_table_info: %v", err)
+	}
+	if count != 1 {
+		t.Fatalf("android column count = %d, want 1", count)
+	}
+	got, err := Load(db, "v")
+	if err != nil {
+		t.Fatalf("Load legacy row: %v", err)
+	}
+	if got.Android != "" {
+		t.Fatalf("legacy android = %q, want empty", got.Android)
+	}
+}
+
+func TestSaveAndroidRoundtrip(t *testing.T) {
+	db, err := Open(filepath.Join(t.TempDir(), "test.db"))
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	defer db.Close()
+
+	if err := Save(db, &Credential{Vid: "123", RefreshToken: "rt", DeviceID: "dev"}); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+	const raw = `{"access_token":"at","device_id":"dev"}`
+	if err := SaveAndroid(db, "123", raw); err != nil {
+		t.Fatalf("SaveAndroid: %v", err)
+	}
+	got, err := Load(db, "123")
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if got.Android != raw {
+		t.Fatalf("android = %q, want %q", got.Android, raw)
+	}
+
+	// 墨水屏 token 轮换不能清掉安卓凭据。
+	if err := Save(db, &Credential{Vid: "123", RefreshToken: "rt2", DeviceID: "dev", AccessToken: "at2"}); err != nil {
+		t.Fatalf("Save rotate: %v", err)
+	}
+	got, err = Load(db, "123")
+	if err != nil {
+		t.Fatalf("Load after rotate: %v", err)
+	}
+	if got.Android != raw {
+		t.Fatalf("android after rotate = %q, want %q", got.Android, raw)
+	}
+
+	if err := SaveAndroid(db, "missing", raw); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("SaveAndroid missing = %v, want ErrNotFound", err)
+	}
+	if err := SaveAndroid(db, "123", ""); err != nil {
+		t.Fatalf("SaveAndroid clear: %v", err)
+	}
+	got, err = Load(db, "123")
+	if err != nil {
+		t.Fatalf("Load after clear: %v", err)
+	}
+	if got.Android != "" {
+		t.Fatalf("android after clear = %q, want empty", got.Android)
 	}
 }
 

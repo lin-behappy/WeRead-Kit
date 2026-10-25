@@ -95,17 +95,24 @@ func authHeaders(creds *Credentials) map[string]string {
 // 其它非 0 值转为错误。非 JSON 或无 errCode 的响应视为通过。
 func checkBusinessCode(body []byte) error {
 	var envelope struct {
-		ErrCode json.Number `json:"errCode"`
-		ErrMsg  string      `json:"errMsg"`
+		// 墨水屏接口用 errCode/errMsg,安卓接口用全小写 errcode/errmsg。
+		ErrCode      json.Number `json:"errCode"`
+		ErrCodeLower json.Number `json:"errcode"`
+		ErrMsg       string      `json:"errMsg"`
+		ErrMsgLower  string      `json:"errmsg"`
 	}
 	if err := json.Unmarshal(body, &envelope); err != nil {
 		return nil
 	}
-	if envelope.ErrCode.String() == "-2012" {
+	code, msg := envelope.ErrCode, envelope.ErrMsg
+	if code.String() == "" {
+		code, msg = envelope.ErrCodeLower, envelope.ErrMsgLower
+	}
+	if code.String() == "-2012" {
 		return ErrSessionExpired
 	}
-	if n, err := envelope.ErrCode.Int64(); err == nil && n != 0 {
-		return fmt.Errorf("errCode=%s errMsg=%q", envelope.ErrCode.String(), envelope.ErrMsg)
+	if n, err := code.Int64(); err == nil && n != 0 {
+		return fmt.Errorf("errCode=%s errMsg=%q", code.String(), msg)
 	}
 	return nil
 }
