@@ -14,6 +14,8 @@
   安卓不可用时记录告警并跳过，不会误领
 - 数据库迁移对已有 v1 库幂等补齐新增列(含 `android`)
 - 新增 `scripts/extract_android_creds.sh`，从已 root 的 ADB 设备提取主应用/应用双开凭据
+- 新增 `scripts/refresh_android_creds.sh`：先拉起客户端让 token 续期，再提取、导入并校验
+  通道；客户端续期后旧 token 立即失效且新 token 写库有延迟，脚本会重试避开这个时间窗
 
 ## [v0.1.11] - 2026-09-24
 
