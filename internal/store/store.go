@@ -24,7 +24,6 @@ CREATE TABLE IF NOT EXISTS weread_account (
   device_id     TEXT NOT NULL,
   access_token  TEXT NOT NULL DEFAULT '',
   remark        TEXT NOT NULL DEFAULT '',
-  android       TEXT NOT NULL DEFAULT '',
   rotated_at    INTEGER NOT NULL,
   created_at    INTEGER NOT NULL
 );`
@@ -122,7 +121,6 @@ func migrateBaseline(db schemaDB) error {
 		{"weread_account", "profile", "TEXT NOT NULL DEFAULT ''"},
 		{"weread_account", "card", "TEXT NOT NULL DEFAULT ''"},
 		{"weread_account", "shelf", "TEXT NOT NULL DEFAULT ''"},
-		{"weread_account", "android", "TEXT NOT NULL DEFAULT ''"},
 		{"weread_account", "details_cached_at", "INTEGER NOT NULL DEFAULT 0"},
 		{"weread_account", "profile_updated_at", "INTEGER NOT NULL DEFAULT 0"},
 	} {
@@ -174,24 +172,21 @@ type Credential struct {
 	Avatar       string
 	UserVid      string
 	// 详情缓存:三段原始 JSON 与采集时间;空串表示还没有缓存。
-	Profile string
-	Card    string
-	Shelf   string
-	// Android 是安卓客户端凭据(JSON),与墨水屏凭据相互独立。
-	// 空串表示尚未导入,周奖励会退回墨水屏通道。
-	Android          string
+	Profile          string
+	Card             string
+	Shelf            string
 	DetailsCachedAt  int64
 	ProfileUpdatedAt int64
 	RotatedAt        time.Time
 	CreatedAt        time.Time
 }
 
-const selectCols = `vid, refresh_token, device_id, access_token, remark, name, avatar, user_vid, profile, card, shelf, android, rotated_at, created_at, details_cached_at, profile_updated_at`
+const selectCols = `vid, refresh_token, device_id, access_token, remark, name, avatar, user_vid, profile, card, shelf, rotated_at, created_at, details_cached_at, profile_updated_at`
 
 func scanCredential(scan func(...any) error) (*Credential, error) {
 	var c Credential
 	var rotated, created int64
-	if err := scan(&c.Vid, &c.RefreshToken, &c.DeviceID, &c.AccessToken, &c.Remark, &c.Name, &c.Avatar, &c.UserVid, &c.Profile, &c.Card, &c.Shelf, &c.Android, &rotated, &created, &c.DetailsCachedAt, &c.ProfileUpdatedAt); err != nil {
+	if err := scan(&c.Vid, &c.RefreshToken, &c.DeviceID, &c.AccessToken, &c.Remark, &c.Name, &c.Avatar, &c.UserVid, &c.Profile, &c.Card, &c.Shelf, &rotated, &created, &c.DetailsCachedAt, &c.ProfileUpdatedAt); err != nil {
 		return nil, err
 	}
 	c.RotatedAt = time.Unix(rotated, 0)
@@ -247,19 +242,6 @@ func Save(db *sql.DB, c *Credential) error {
 			rotated_at = excluded.rotated_at`,
 		c.Vid, c.RefreshToken, c.DeviceID, c.AccessToken, c.Remark, now, now)
 	return err
-}
-
-// SaveAndroid 保存安卓客户端凭据 JSON;空串表示移除。
-// 安卓 token 与墨水屏 refreshToken 是两套独立会话,不能混写。
-func SaveAndroid(db *sql.DB, vid, raw string) error {
-	res, err := db.Exec(`UPDATE weread_account SET android = ? WHERE vid = ?`, raw, vid)
-	if err != nil {
-		return err
-	}
-	if n, err := res.RowsAffected(); err == nil && n == 0 {
-		return ErrNotFound
-	}
-	return nil
 }
 
 // UpdateRemark 更新账号备注(界面上的显示名)。

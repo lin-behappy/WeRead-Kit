@@ -131,19 +131,11 @@ func (c *Client) WeeklyExchange(ctx context.Context, creds *Credentials, awardLe
 	for k, v := range authHeaders(creds) {
 		headers[k] = v
 	}
-	return c.weeklyExchange(ctx, headers, awardLevelID, awardChooseType, isExchangeAward, nil)
-}
-
-// weeklyExchange 是两端共用的请求/错误处理;extra 用于追加端特定参数。
-func (c *Client) weeklyExchange(ctx context.Context, headers map[string]string, awardLevelID, awardChooseType, isExchangeAward int, extra map[string]any) (json.RawMessage, error) {
 	payload := map[string]any{
 		"awardLevelId":    awardLevelID,
 		"awardChoiceType": awardChooseType,
 		"isExchangeAward": isExchangeAward,
 		"pf":              weeklyPF,
-	}
-	for k, v := range extra {
-		payload[k] = v
 	}
 	data, status, err := c.postJSON(ctx, BaseURL+"/weekly/exchange", headers, payload)
 	if err != nil {
